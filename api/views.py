@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from .models import JobPost, AnalysisResult
 from .serializers import RegisterSerializer, UserSerializer, JobPostSerializer
+from .analyzer import analyze_job_post
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -33,18 +34,17 @@ def analyze_post(request):
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    # Stub analysis — real NLP comes Week 3
     job_post = JobPost.objects.create(
-        user=request.user,
-        title=title,
-        content=content,
-        source=source
+    user=request.user,
+    title=title,
+    content=content,
+    source=source
     )
 
-    # Placeholder logic — will be replaced with real NLP
-    score = 50
-    risk = "Medium"
-    reasons = ["Stub analysis — NLP not built yet"]
+    result = analyze_job_post(title, content)
+    score = result["score"]
+    risk = result["risk"]
+    reasons = result["reasons"]
 
     analysis = AnalysisResult.objects.create(
         job_post=job_post,
