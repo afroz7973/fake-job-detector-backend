@@ -30,8 +30,7 @@ SECRET_KEY = 'django-insecure-1k&h9xfg46_+vm5v$q(nx*ivd5_r844y=!7fa$@1%yc#q_ii$0
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = ['10.0.2.2', '127.0.0.1', 'localhost']
 AUTH_USER_MODEL = 'api.User'
 # Application definition
 
