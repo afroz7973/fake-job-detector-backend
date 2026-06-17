@@ -6,6 +6,36 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .models import JobPost, AnalysisResult
 from .serializers import RegisterSerializer, UserSerializer, JobPostSerializer
 from .analyzer import analyze_job_post
+from .ml_analyzer import ml_analyze
+
+def get_combined_analysis(title, content):
+    rule_result = analyze_job_post(title, content)
+    
+    try:
+        ml_result = ml_analyze(title, content)
+        combined_score = int(
+            (ml_result['score'] * 0.6) +
+            (rule_result['score'] * 0.4)
+        )
+        combined_score = min(combined_score, 100)
+        reasons = rule_result['reasons'].copy()
+        reasons.append(f"ML model confidence: {ml_result['score']}%")
+    except Exception:
+        combined_score = rule_result['score']
+        reasons = rule_result['reasons']
+
+    if combined_score >= 70:
+        risk = "High"
+    elif combined_score >= 40:
+        risk = "Medium"
+    else:
+        risk = "Low"
+
+    return {
+        "score": combined_score,
+        "risk": risk,
+        "reasons": reasons
+    }
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -35,25 +65,25 @@ def analyze_post(request):
         )
 
     job_post = JobPost.objects.create(
-    user=request.user,
-    title=title,
-    content=content,
-    source=source
+        user=request.user,
+        title=title,
+        content=content,
+        source=source
     )
 
-    result = analyze_job_post(title, content)
-    score = result["score"]
-    risk = result["risk"]
-    reasons = result["reasons"]
+    result = get_combined_analysis(title, content)
 
-    analysis = AnalysisResult.objects.create(
+    AnalysisResult.objects.create(
         job_post=job_post,
-        scam_score=score,
-        risk_level=risk,
-        reasons=reasons
+        scam_score=result["score"],
+        risk_level=result["risk"],
+        reasons=result["reasons"]
     )
 
-    return Response(JobPostSerializer(job_post).data, status=status.HTTP_201_CREATED)
+    return Response(
+        JobPostSerializer(job_post).data,
+        status=status.HTTP_201_CREATED
+    )
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
