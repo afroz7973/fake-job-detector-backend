@@ -1,4 +1,5 @@
 from rest_framework import status
+from .explainability import get_top_contributing_words
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -20,6 +21,12 @@ def get_combined_analysis(title, content):
         combined_score = min(combined_score, 100)
         reasons = rule_result['reasons'].copy()
         reasons.append(f"ML model confidence: {ml_result['score']}%")
+        
+        top_words = get_top_contributing_words(title, content)
+        if combined_score >= 40:
+            top_words = get_top_contributing_words(title, content)
+            if top_words:
+                reasons.append(f"Key flagged words: {', '.join(top_words)}")
     except Exception:
         combined_score = rule_result['score']
         reasons = rule_result['reasons']
