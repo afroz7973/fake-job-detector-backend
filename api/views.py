@@ -8,6 +8,7 @@ from .models import JobPost, AnalysisResult
 from .serializers import RegisterSerializer, UserSerializer, JobPostSerializer
 from .analyzer import analyze_job_post
 from .ml_analyzer import ml_analyze
+from .domain_verifier import verify_company_domain
 
 def get_combined_analysis(title, content):
     rule_result = analyze_job_post(title, content)
@@ -22,7 +23,6 @@ def get_combined_analysis(title, content):
         reasons = rule_result['reasons'].copy()
         reasons.append(f"ML model confidence: {ml_result['score']}%")
         
-        top_words = get_top_contributing_words(title, content)
         if combined_score >= 40:
             top_words = get_top_contributing_words(title, content)
             if top_words:
@@ -30,6 +30,12 @@ def get_combined_analysis(title, content):
     except Exception:
         combined_score = rule_result['score']
         reasons = rule_result['reasons']
+
+    domain_result = verify_company_domain(content)
+    if domain_result['domain_found']:
+        if domain_result['trust_score'] < 40:
+            combined_score = min(combined_score + 15, 100)
+        reasons.extend(domain_result['flags'])
 
     if combined_score >= 70:
         risk = "High"

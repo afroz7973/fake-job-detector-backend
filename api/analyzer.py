@@ -1,4 +1,5 @@
 import re
+from .utils.email_extractor import extract_email, get_domain
 
 UPFRONT_PAYMENT = [
     r'registration fee', r'pay.*deposit', r'send.*money',
@@ -68,6 +69,12 @@ def check_patterns(text, patterns):
 
 def analyze_job_post(title, content):
     full_text = f"{title} {content}".lower()
+    email = extract_email(content)
+    domain = get_domain(email)
+
+    print("Email:", email)
+    print("Domain:", domain)
+    
     reasons = []
     score = 0
 
@@ -125,5 +132,8 @@ def analyze_job_post(title, content):
     return {
         "score": score,
         "risk": risk,
-        "reasons": reasons
+        "reasons": reasons,
+        "email": email,
+        "domain": domain
     }
+    
