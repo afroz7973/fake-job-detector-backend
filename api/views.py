@@ -9,6 +9,8 @@ from .serializers import RegisterSerializer, UserSerializer, JobPostSerializer
 from .analyzer import analyze_job_post
 from .ml_analyzer import ml_analyze
 from .domain_verifier import verify_company_domain
+from .community_signal import get_community_risk_boost
+
 
 def get_combined_analysis(title, content):
     rule_result = analyze_job_post(title, content)
@@ -37,6 +39,11 @@ def get_combined_analysis(title, content):
             combined_score = min(combined_score + 15, 100)
         reasons.extend(domain_result['flags'])
 
+    community_result = get_community_risk_boost(content)
+    if community_result['boost'] > 0:
+        combined_score = min(combined_score + community_result['boost'], 100)
+        reasons.append(community_result['reason'])
+
     if combined_score >= 70:
         risk = "High"
     elif combined_score >= 40:
@@ -64,18 +71,13 @@ def register(request):
         }, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def analyze_post(request):
-    content = request.data.get('content', '')
     title = request.data.get('title', '')
+    content = request.data.get('content', '')
     source = request.data.get('source', '')
-
-    if not content:
-        return Response(
-            {'error': 'Content is required'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
 
     job_post = JobPost.objects.create(
         user=request.user,
@@ -88,23 +90,17 @@ def analyze_post(request):
 
     AnalysisResult.objects.create(
         job_post=job_post,
-        scam_score=result["score"],
-        risk_level=result["risk"],
-        reasons=result["reasons"]
+        scam_score=result['score'],
+        risk_level=result['risk'],
+        reasons=result['reasons']
     )
+
+    serializer = JobPostSerializer(job_post)
 
     return Response(
-        JobPostSerializer(job_post).data,
+        serializer.data,
         status=status.HTTP_201_CREATED
     )
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def fetch_history(request):
-    posts = JobPost.objects.filter(
-        user=request.user
-    ).order_by('-created_at')
-    return Response(JobPostSerializer(posts, many=True).data)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -116,7 +112,7 @@ def report_scam(request):
             status=status.HTTP_400_BAD_REQUEST
         )
     try:
-        job_post = JobPost.objects.get(id=post_id, user=request.user)
+        job_post = JobPost.objects.get(id=post_id)
     except JobPost.DoesNotExist:
         return Response(
             {'error': 'Post not found'},
@@ -127,4 +123,29 @@ def report_scam(request):
         job_post=job_post,
         user=request.user
     )
-    return Response({'reported': True, 'created': created})
+    
+    report_count = ScamReport.objects.filter(job_post=job_post).count()
+        
+    if report_count >= 3:
+        analysis = job_post.analysis
+        if "community reports" not in str(analysis.reasons):
+            analysis.scam_score = min(analysis.scam_score + 25, 100)
+            analysis.risk_level = "High"
+            reasons = analysis.reasons
+            reasons.append(f"Flagged by {report_count} community reports")
+            analysis.reasons = reasons
+            analysis.save()
+    
+    return Response({
+        'reported': True,
+        'created': created,
+        'total_reports': report_count
+    })
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def fetch_history(request):
+    posts = JobPost.objects.filter(
+        user=request.user
+    ).order_by('-created_at')
+    return Response(JobPostSerializer(posts, many=True).data)
+
