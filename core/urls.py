@@ -14,4 +14,5 @@ urlpatterns = [
     path('api/analyze/', views.analyze_post),
     path('api/history/', views.fetch_history),
     path('api/report/', views.report_scam),
+    path('', views.home),
 ]

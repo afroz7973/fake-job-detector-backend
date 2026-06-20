@@ -10,6 +10,14 @@ from .analyzer import analyze_job_post
 from .ml_analyzer import ml_analyze
 from .domain_verifier import verify_company_domain
 from .community_signal import get_community_risk_boost
+from django.http import JsonResponse
+
+def home(request):
+    return JsonResponse({
+        "message": "Fake Job Detector API is running",
+        "version": "1.0",
+        "status": "online"
+    })
 
 
 def get_combined_analysis(title, content):
