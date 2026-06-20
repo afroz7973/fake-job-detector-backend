@@ -126,3 +126,23 @@ cd fake_job_detector_app
 flutter pub get
 flutter run
 ```
+
+## Screenshots
+### Login Screen
+![Login Screen](assets/screenshots/login.png)
+
+### Register page
+![Home Screen](assets/screenshots/register.png)
+
+### Analyze page
+![Home Screen](assets/screenshots/analyse.png)
+
+### Post Analyse page
+![Analysis Result](assets/screenshots/analyse_post.png)
+
+### final Result
+![Analysis Result](assets/screenshots/result.png)
+
+## Demo Video
+
+▶️ [Watch Project Demo on YouTube](https://youtu.be/SRXhvdMuYeM)
